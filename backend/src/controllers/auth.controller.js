@@ -1,0 +1,67 @@
+import CustomError from "../lib/CustomError.js";
+import { ENV } from "../config/env.config.js";
+import databaseService from "../services/database.service.js";
+import JWTService from "../services/jwt.service.js";
+import asyncHandler from "../utils/asyncHandler.js"
+
+class AuthController {
+    register = asyncHandler(
+        async (req, res) => {
+            const { email, password, fullName } = req.body;
+
+            if (!email || !password || !fullName) {
+                throw new CustomError(400, "All fields are required!!!");
+            }
+
+            if (password.length < 6) {
+                throw new CustomError(400, "Password must be atleast 6 character long!!!");
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                throw new CustomError(400, "Invalid email format!!!");
+            }
+
+            // check if user already exist
+            const user = await databaseService.getUser({ email })
+            if (user) {
+                throw new CustomError(400, "Email already in-use, please try with different email!!!")
+            }
+
+            const idx = Math.floor(Math.random() * 100) + 1; // generate a number between 1 - 100
+            const randomAvatar = `https://api.dicebear.com/7.x/avataaars/svg?seed=${idx}`;
+
+            // Create User
+            const newUser = await databaseService.createUser({ email, fullName, password, profilePic: randomAvatar });
+
+            // generate the JWT token
+            const token = JWTService.createToken({ userId: newUser._id }, ENV.JWT_SECRET_KEY, { expiresIn: "7d" });
+
+            res.cookie("token", token, {
+                httpOnly: true, // prevent XSS attacks
+                secure: process.env.NODE_ENV === "production",
+                sameSite: "strict", // prevent CSRF attacks
+                maxAge: 7 * 24 * 60 * 60 * 1000
+            })
+            return res.status(201).json({
+                success: true,
+                user: newUser
+            })
+        }
+    )
+
+    login = async (req, res) => {
+        return res.status(201).json({
+            message: "Login Successfull"
+        })
+    }
+
+    logout = async (req, res) => {
+        return res.status(201).json({
+            message: "Logout Successfull"
+        })
+    }
+}
+
+const authController = new AuthController();
+export default authController;
