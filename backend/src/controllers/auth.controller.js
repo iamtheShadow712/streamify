@@ -3,6 +3,7 @@ import { ENV } from "../config/env.config.js";
 import databaseService from "../services/database.service.js";
 import JWTService from "../services/jwt.service.js";
 import asyncHandler from "../utils/asyncHandler.js"
+import { upsertStreamUser } from "../lib/stream.js";
 
 class AuthController {
     register = asyncHandler(
@@ -34,6 +35,12 @@ class AuthController {
             // Create User
             const newUser = await databaseService.createUser({ email, fullName, password, profilePic: randomAvatar });
 
+            // Create Stream User
+            await upsertStreamUser({
+                id: newUser._id.toString(),
+                name: newUser.fullName,
+                image: newUser.profilePic || ""
+            });
             // generate the JWT token
             const token = JWTService.createToken({ userId: newUser._id }, ENV.JWT_SECRET_KEY, { expiresIn: "7d" });
 
