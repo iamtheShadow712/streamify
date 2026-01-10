@@ -50,17 +50,43 @@ class AuthController {
         }
     )
 
-    login = async (req, res) => {
-        return res.status(201).json({
-            message: "Login Successfull"
-        })
-    }
+    login = asyncHandler(async (req, res) => {
+        const { email, password } = req.body;
+        if (!email || !password) {
+            throw new CustomError(400, "All fields are required!!!")
+        }
 
-    logout = async (req, res) => {
-        return res.status(201).json({
-            message: "Logout Successfull"
+        const user = await databaseService.getUser({ email });
+        if (!user) {
+            throw new CustomError(404, "Invalid Credentials")
+        }
+        const isValidPassword = await user.matchPassword(password)
+        if (!isValidPassword) {
+            throw new CustomError(401, "Invalid Credentials")
+        }
+
+        const token = JWTService.createToken({ userId: user._id }, ENV.JWT_SECRET_KEY, { expiresIn: "7d" });
+
+        res.cookie("token", token, {
+            httpOnly: true, // prevent XSS attacks
+            secure: process.env.NODE_ENV === "production",
+            sameSite: "strict", // prevent CSRF attacks
+            maxAge: 7 * 24 * 60 * 60 * 1000
         })
-    }
+
+        return res.status(200).json({
+            success: true,
+            user
+        })
+    })
+
+    logout = asyncHandler(async (req, res) => {
+        res.clearCookie("token");
+        return res.status(200).json({
+            success: true,
+            message: "Logged Out"
+        })
+    })
 }
 
 const authController = new AuthController();
