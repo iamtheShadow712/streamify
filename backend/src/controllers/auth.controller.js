@@ -94,6 +94,28 @@ class AuthController {
             message: "Logged Out"
         })
     })
+
+    onboarding = asyncHandler(async (req, res) => {
+        const userId = req.user._id;
+        const { fullName, nativeLanguage, learningLanguage, location, bio } = req.body;
+
+        if (!fullName || !nativeLanguage || !learningLanguage || !location || !bio) {
+            throw new CustomError(400, "All Onboarding fields are required")
+        }
+
+        const updatedUser = await databaseService.updateUserById(userId, { ...req.body, isOnboarding: true });
+        if (!updatedUser) {
+            throw new CustomError(404, "User not found");
+        }
+        console.log(updatedUser);
+        // Update the user info in STREAM
+        await upsertStreamUser({ id: updatedUser._id.toString(), name: updatedUser.fullName, image: updatedUser.profilePic })
+
+        return res.status(200).json({
+            success: true,
+            user: updatedUser
+        });
+    })
 }
 
 const authController = new AuthController();

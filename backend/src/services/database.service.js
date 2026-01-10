@@ -7,6 +7,10 @@ class DatabaseService {
     createUser(data) {
         return User.create(data);
     }
+
+    updateUserById(userId, updatedData) {
+        return User.findByIdAndUpdate(userId, { $set: { ...updatedData } }, { new: true })
+    }
 }
 
 const databaseService = new DatabaseService();
