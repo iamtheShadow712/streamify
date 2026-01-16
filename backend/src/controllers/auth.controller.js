@@ -4,6 +4,7 @@ import databaseService from "../services/database.service.js";
 import JWTService from "../services/jwt.service.js";
 import asyncHandler from "../utils/asyncHandler.js"
 import { upsertStreamUser } from "../lib/stream.js";
+import User from "../models/User.model.js";
 
 class AuthController {
     register = asyncHandler(
@@ -64,6 +65,7 @@ class AuthController {
         }
 
         const user = await databaseService.getUser({ email });
+
         if (!user) {
             throw new CustomError(404, "Invalid Credentials")
         }
@@ -72,7 +74,7 @@ class AuthController {
             throw new CustomError(401, "Invalid Credentials")
         }
 
-        const token = JWTService.createToken({ userId: user._id }, ENV.JWT_SECRET_KEY, { expiresIn: "7d" });
+        const token = JWTService.createToken({ userId: user.id }, ENV.JWT_SECRET_KEY, { expiresIn: "7d" });
 
         res.cookie("token", token, {
             httpOnly: true, // prevent XSS attacks
@@ -80,7 +82,6 @@ class AuthController {
             sameSite: "strict", // prevent CSRF attacks
             maxAge: 7 * 24 * 60 * 60 * 1000
         })
-
         return res.status(200).json({
             success: true,
             user
@@ -96,20 +97,19 @@ class AuthController {
     })
 
     onboarding = asyncHandler(async (req, res) => {
-        const userId = req.user._id;
+        const userId = req.user.id;
         const { fullName, nativeLanguage, learningLanguage, location, bio } = req.body;
 
         if (!fullName || !nativeLanguage || !learningLanguage || !location || !bio) {
             throw new CustomError(400, "All Onboarding fields are required")
         }
 
-        const updatedUser = await databaseService.updateUserById(userId, { ...req.body, isOnboarding: true });
+        const updatedUser = await databaseService.updateUserById(userId, { $set: { ...req.body, isOnboarding: true } });
         if (!updatedUser) {
             throw new CustomError(404, "User not found");
         }
-        console.log(updatedUser);
         // Update the user info in STREAM
-        await upsertStreamUser({ id: updatedUser._id.toString(), name: updatedUser.fullName, image: updatedUser.profilePic })
+        await upsertStreamUser({ id: updatedUser.id.toString(), name: updatedUser.fullName, image: updatedUser.profilePic })
 
         return res.status(200).json({
             success: true,

@@ -1,34 +1,62 @@
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from '/vite.svg'
-import './App.css'
+import { Routes, Route, Navigate } from "react-router";
+import HomePage from "./pages/HomePage";
+import RegisterPage from "./pages/RegisterPage";
+import LoginPage from "./pages/LoginPage";
+import OnboardingPage from "./pages/OnboardingPage";
+import ChatPage from "./pages/ChatPage";
+import CallPage from "./pages/CallPage";
+import NotificationPage from "./pages/NotificationPage";
+import { Toaster } from "react-hot-toast";
+import PageLoader from "./components/PageLoader";
+import useAuthUser from "./hooks/useAuthUser";
+import useApp from "./store/useApp";
+import Layout from "./components/Layout";
 
-function App() {
-  const [count, setCount] = useState(0)
-
+const App = () => {
+  const { authUser: authData, isLoading } = useAuthUser();
+  const { theme } = useApp();
+  const isAuthenticated = Boolean(authData);
+  const isOnboarded = authData?.isOnboarding;
+  if (isLoading) {
+    return <PageLoader />
+  }
   return (
-    <>
-      <div>
-        <a href="https://vite.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
-      </div>
-      <h1>Vite + React</h1>
-      <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
-          count is {count}
-        </button>
-        <p>
-          Edit <code>src/App.jsx</code> and save to test HMR
-        </p>
-      </div>
-      <p className="read-the-docs">
-        Click on the Vite and React logos to learn more
-      </p>
-    </>
+    <div className='h-screen' data-theme={`${theme}`}>
+      <Routes>
+        <Route path="/auth/login" element={!isAuthenticated ? <LoginPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />} />
+        <Route path="/auth/register" element={!isAuthenticated ? <RegisterPage /> : <Navigate to={isOnboarded ? "/" : "/onboarding"} />} />
+        <Route
+          path="/"
+          element={isAuthenticated && isOnboarded ?
+            <Layout showSidebar={true}>
+              <HomePage />
+            </Layout> :
+            <Navigate to={!isAuthenticated ? "/auth/login" : "/onboarding"}
+            />}
+        />
+
+        <Route path="/chat/:id"
+          element={isAuthenticated && isOnboarded ?
+            <Layout showSidebar={false}>
+              <ChatPage />
+            </Layout> :
+            <Navigate to={!isAuthenticated ? "/auth/login" : "/onboarding"} />}
+        />
+        <Route path="/call/:id" element={isAuthenticated && isOnboarded ? <CallPage /> : <Navigate to={!isAuthenticated ? "/auth/login" : "/onboarding"} />} />
+        <Route path="/notifications"
+          element={isAuthenticated && isOnboarded ?
+            <Layout showSidebar>
+              <NotificationPage />
+            </Layout> : <Navigate to={!isAuthenticated ? "/auth/login" : "/onboarding"} />} />
+        <Route
+          path="/onboarding"
+          element={isAuthenticated ? (
+            !isOnboarded ? <OnboardingPage /> : <Navigate to="/" />
+          ) : <Navigate to="/auth/login" />}
+        />
+      </Routes>
+      <Toaster toastOptions={{ duration: 2000, position: "top-right" }} />
+    </div>
   )
 }
 

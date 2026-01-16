@@ -20,5 +20,6 @@ export const upsertStreamUser = async (userData) => {
 }
 
 export const generateStreamToken = (userId) => {
-    return streamClient.createToken(userId);
+    const userStr = userId.toString();
+    return streamClient.createToken(userStr);
 }
